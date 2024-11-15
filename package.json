@@ -1,0 +1,22 @@
+{
+  "name": "hash-token",
+  "version": "1.0.0",
+  "description": "A secure token manager with HMAC and salt management",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": "git@github.com:dnettoRaw/hashToken",
+  "author": "dnettoRaw <me@dnetto.dev>",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "prepublishOnly": "yarn build"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.9.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "^5.6.3"
+  }
+}
