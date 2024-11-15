@@ -45,7 +45,7 @@ O **AdvancedTokenManager** é uma biblioteca em TypeScript projetada para gerar 
 Adicione o AdvancedTokenManager ao seu projeto:
 
 ```bash
-npm install advanced-token-manager
+npm i hash-token
 ```
 
 ### Código de Exemplo
