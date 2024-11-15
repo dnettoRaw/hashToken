@@ -1,20 +1,22 @@
 
 # AdvancedTokenManager
 
-O **AdvancedTokenManager** é uma classe em TypeScript projetada para gerar e validar tokens seguros, garantindo integridade e ofuscação. Ele utiliza HMAC (Hash-based Message Authentication Code) com um segredo privado, além de uma tabela predefinida de salts para ofuscar ainda mais os dados, dificultando ataques de engenharia reversa ou modificação maliciosa de tokens.
+O **AdvancedTokenManager** é uma biblioteca em TypeScript projetada para gerar e validar tokens seguros, garantindo integridade e ofuscação. Ele utiliza HMAC (Hash-based Message Authentication Code) com um segredo privado, além de uma tabela predefinida de salts para reforçar a segurança, dificultando ataques de engenharia reversa ou modificação maliciosa de tokens.
+
+---
 
 ## Por que usar o AdvancedTokenManager?
 
 1. **Segurança Robusta**:
-   - Usa HMAC com um segredo privado para garantir a integridade dos tokens.
-   - O índice do salt ofusca os dados reais, tornando difícil descobrir os valores originais sem acesso ao sistema.
+   - Utiliza HMAC com um segredo privado para garantir a integridade dos tokens.
+   - Ofusca os dados com um índice de salt, tornando difícil acessar ou decifrar os dados originais.
 
 2. **Flexibilidade**:
    - Suporta diferentes algoritmos de hash, como `sha256` (padrão) ou `sha512`.
-   - A tabela de salts pode ser personalizada, e novos salts podem ser adicionados facilmente.
+   - Permite configurar uma tabela de salts personalizada.
 
 3. **Resistência a Ataques**:
-   - Mesmo que o token seja interceptado, não é possível validá-lo ou recriá-lo sem o segredo privado e a tabela de salts.
+   - Mesmo que o token seja interceptado, ele não pode ser validado ou recriado sem o segredo privado e a tabela de salts.
 
 ---
 
@@ -22,21 +24,17 @@ O **AdvancedTokenManager** é uma classe em TypeScript projetada para gerar e va
 
 ### Geração de Tokens
 
-1. A função `generateToken`:
-   - Seleciona um salt aleatório da tabela predefinida.
-   - Calcula um checksum combinando a string de entrada, o salt selecionado e o segredo privado.
-   - Retorna o token codificado em Base64, contendo:
-     - Dados originais.
-     - Índice do salt.
-     - Checksum.
+- A função `generateToken` seleciona um salt aleatório da tabela de salts e calcula um checksum utilizando a string de entrada, o salt e o segredo privado.
+- O token gerado é codificado em Base64 e contém:
+  - Dados originais.
+  - Índice do salt.
+  - Checksum.
 
 ### Validação de Tokens
 
-2. A função `validateToken`:
-   - Decodifica o token para obter os dados, índice do salt e checksum.
-   - Recupera o salt correspondente ao índice.
-   - Recalcula o checksum e o compara com o checksum do token.
-   - Retorna os dados originais se o token for válido; caso contrário, retorna `null`.
+- A função `validateToken` decodifica o token para obter os dados originais, o índice do salt e o checksum.
+- Recalcula o checksum usando os mesmos parâmetros e compara com o checksum original.
+- Retorna os dados originais se o token for válido; caso contrário, retorna `null`.
 
 ---
 
@@ -44,17 +42,19 @@ O **AdvancedTokenManager** é uma classe em TypeScript projetada para gerar e va
 
 ### Instalação
 
-Instale as dependências necessárias:
+Adicione o AdvancedTokenManager ao seu projeto:
 
 ```bash
-npm install crypto
+npm install advanced-token-manager
 ```
 
 ### Código de Exemplo
 
 ```typescript
+import AdvancedTokenManager from 'advanced-token-manager';
+
 const secretKey = "minha-chave-secreta-muito-segura"; // Mantenha esta chave privada!
-const salts = ["salt-um", "salt-dois", "salt-tres", "salt-quatro", "salt-cinco"]; // Tabela de salts predefinidos
+const salts = ["salt-um", "salt-dois", "salt-tres", "salt-quatro", "salt-cinco"]; // Tabela de salts
 
 const tokenManager = new AdvancedTokenManager(secretKey, salts);
 
@@ -70,6 +70,8 @@ if (validatedInput) {
 }
 ```
 
+---
+
 ### Saída Esperada
 
 ```bash
@@ -83,11 +85,11 @@ Token Válido! Dados Originais: dados-sensitivos
 
 ### Por que testar?
 
-Os testes garantem que o **AdvancedTokenManager** funciona como esperado em diversos cenários, incluindo casos extremos como tokens modificados ou índices de salt inválidos.
+Os testes garantem que o **AdvancedTokenManager** funcione corretamente em diversos cenários, incluindo casos extremos, como tokens modificados ou índices de salt inválidos.
 
-### Configurando os Testes
+### Configuração dos Testes
 
-1. Instale o Jest e suas dependências:
+1. Instale as dependências de teste:
 
 ```bash
 npm install --save-dev jest @types/jest ts-jest
@@ -105,7 +107,7 @@ npm install --save-dev jest @types/jest ts-jest
 
 ```typescript
 import { describe, test, expect } from '@jest/globals';
-import AdvancedTokenManager from './AdvancedTokenManager'; // Ajuste o caminho para a classe
+import AdvancedTokenManager from './AdvancedTokenManager';
 
 describe('AdvancedTokenManager', () => {
     const secretKey = 'my-very-secure-key-12345';
@@ -153,22 +155,6 @@ npm test
 
 ---
 
-### Explicação dos Testes
-
-1. **Geração de Tokens Válidos**:
-   - Testa se a função `generateToken` retorna um token válido.
-
-2. **Validação de Tokens Válidos**:
-   - Testa se um token gerado pode ser validado corretamente e retorna os dados originais.
-
-3. **Detecção de Tokens Modificados**:
-   - Testa se um token modificado é detectado como inválido.
-
-4. **Geração de Tokens Únicos**:
-   - Verifica se tokens gerados para o mesmo dado de entrada são únicos devido ao uso de salts aleatórios.
-
----
-
 ## Estrutura do Projeto
 
 ```
@@ -184,19 +170,18 @@ package.json                  # Configurações do projeto
 ## Contribuindo
 
 1. Faça um fork do repositório.
-2. Crie uma nova branch para sua feature (`git checkout -b feature/nova-feature`).
+2. Crie uma nova branch (`git checkout -b feature/minha-nova-feature`).
 3. Faça commit das alterações (`git commit -m 'Adiciona nova feature'`).
-4. Envie suas alterações para o GitHub (`git push origin feature/nova-feature`).
-5. Crie um Pull Request.
+4. Envie suas alterações para o GitHub (`git push origin feature/minha-nova-feature`).
+5. Abra um Pull Request.
 
 ---
 
 ## Licença
 
-Este projeto está licenciado sob a [MIT License](https://opensource.org/licenses/MIT). Sinta-se à vontade para usá-lo e modificá-lo como quiser.
+Este projeto está licenciado sob a [MIT License](https://opensource.org/licenses/MIT). Sinta-se à vontade para usá-lo e modificá-lo como desejar.
 
 ---
-
 ## Contato
 
 Para dúvidas ou sugestões, entre em contato em: **[contac@dnetto.dev](contac@dnetto.dev)**.
