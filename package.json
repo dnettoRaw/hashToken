@@ -4,13 +4,18 @@
   "description": "A secure token manager with HMAC and salt management",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "repository": "git@github.com:dnettoRaw/hashToken",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:dnettoRaw/hashToken.git"
+  },
   "author": "dnettoRaw <me@dnetto.dev>",
   "license": "MIT",
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "prepublishOnly": "yarn build"
+    "prepublishOnly": "yarn build",
+    "publish:github": "npm publish --registry=https://npm.pkg.github.com",
+    "publish:npm": "npm publish"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
@@ -18,5 +23,28 @@
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
     "typescript": "^5.6.3"
+  },
+  "keywords": [
+    "hash",
+    "token",
+    "secure",
+    "hmac",
+    "salt",
+    "typescript",
+    "encryption",
+    "security",
+    "auth",
+    "validation",
+    "authentication",
+    "checksum",
+    "advanced-token-manager",
+    "hash-token",
+    "cryptography",
+    "secure-tokens",
+    "obfuscation",
+    "jwt-alternative"
+  ],
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
   }
 }

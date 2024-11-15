@@ -1,41 +1,31 @@
 import { describe, test, expect } from '@jest/globals';
-import AdvancedTokenManager from '../src/AdvancedTokenManager'; // Ajuste o caminho para a classe
-
-let testCounter = 0; // Contador global para o número do teste
-const totalTests = 15; // Atualize com o número total de testes
-
-// Função para exibir o progresso do teste
-const logTestProgress = (testName: string) => {
-    testCounter++;
-    const formattedCounter = String(testCounter).padStart(2, '0');
-    // console.log(`${formattedCounter}/${totalTests} - ${testName}`);
-};
-
+import AdvancedTokenManager from '../src/AdvancedTokenManager';
 
 describe('AdvancedTokenManager', () => {
     const secretKey = 'my-very-secure-key-12345';
     const salts = ['salt-one', 'salt-two', 'salt-three', 'salt-four', 'salt-five'];
 
     let tokenManager: AdvancedTokenManager;
-
-    // Mock do console.error
+    
+    // Mock do console.error e console.warn
     let consoleErrorMock: jest.SpyInstance;
+    let consoleWarnMock: jest.SpyInstance;
 
     beforeAll(() => {
         consoleErrorMock = jest.spyOn(console, 'error').mockImplementation(() => {});
+        consoleWarnMock = jest.spyOn(console, 'warn').mockImplementation(() => {}); // Mock para warnings
     });
 
     afterAll(() => {
-        consoleErrorMock.mockRestore(); // Restaura o comportamento original após os testes
+        consoleErrorMock.mockRestore();
+        consoleWarnMock.mockRestore(); // Restaura console.warn após os testes
     });
 
     beforeEach(() => {
-        // Inicializa uma nova instância antes de cada teste
         tokenManager = new AdvancedTokenManager(secretKey, salts);
     });
 
-    test(`${testCounter} should generate a valid token`, () => {
-    logTestProgress('should generate a valid token');
+    test('should generate a valid token', () => {
         const input = 'sensitive-data';
         const token = tokenManager.generateToken(input);
 
@@ -44,7 +34,6 @@ describe('AdvancedTokenManager', () => {
     });
 
     test('should validate a valid token correctly', () => {
-    logTestProgress('should validate a valid token correctly');
         const input = 'sensitive-data';
         const token = tokenManager.generateToken(input);
         const validatedInput = tokenManager.validateToken(token);
@@ -53,11 +42,9 @@ describe('AdvancedTokenManager', () => {
     });
 
     test('should return null for a modified token', () => {
-    logTestProgress('should return null for a modified token');
         const input = 'sensitive-data';
         const token = tokenManager.generateToken(input);
 
-        // Modifica o token para simular um token inválido
         const invalidToken = token.slice(0, -1) + 'x';
         const validatedInput = tokenManager.validateToken(invalidToken);
 
@@ -65,14 +52,12 @@ describe('AdvancedTokenManager', () => {
     });
 
     test('should return null for a token with an invalid salt index', () => {
-    logTestProgress('should return null for a token with an invalid salt index');
         const input = 'sensitive-data';
         const token = tokenManager.generateToken(input);
 
-        // Modifica o índice do salt no token
         const decoded = Buffer.from(token, 'base64').toString('utf-8');
         const [data, saltIndex, checksum] = decoded.split('|');
-        const invalidSaltIndex = salts.length; // Índice inválido (fora do intervalo)
+        const invalidSaltIndex = salts.length;
         const modifiedToken = Buffer.from(`${data}|${invalidSaltIndex}|${checksum}`).toString('base64');
 
         const validatedInput = tokenManager.validateToken(modifiedToken);
@@ -80,7 +65,6 @@ describe('AdvancedTokenManager', () => {
     });
 
     test('should generate unique tokens for the same input with different salts', () => {
-    logTestProgress('should generate unique tokens for the same input with different salts');
         const input = 'sensitive-data';
         const token1 = tokenManager.generateToken(input);
         const token2 = tokenManager.generateToken(input);
@@ -89,52 +73,87 @@ describe('AdvancedTokenManager', () => {
     });
 
     test('should throw an error if initialized with an invalid secret key', () => {
-    logTestProgress('should throw an error if initialized with an invalid secret key');
-        expect(() => new AdvancedTokenManager('', salts)).toThrowError('A chave secreta deve ter pelo menos 16 caracteres.');
+        expect(() => new AdvancedTokenManager('', salts, 'sha256', false)).toThrowError(
+            'A chave secreta deve ter pelo menos 16 caracteres.'
+        );
     });
-
+    
     test('should throw an error if initialized with an empty salt table', () => {
-    logTestProgress('should throw an error if initialized with an empty salt table');
-        expect(() => new AdvancedTokenManager(secretKey, [])).toThrowError('A tabela de salts não pode estar vazia.');
+        expect(() => new AdvancedTokenManager(secretKey, [], 'sha256', false)).toThrowError(
+            'A tabela de salts não pode estar vazia.'
+        );
     });
 
-    // Novos testes adicionados:
     test('should extract the original data from a valid token', () => {
-    logTestProgress('should extract the original data from a valid token');
         const input = 'sensitive-data';
         const token = tokenManager.generateToken(input);
         const extractedData = tokenManager.extractOriginalData(token);
-    
+
         expect(extractedData).toBe(input);
     });
-    
+
     test('should return null when extracting data from an invalid token', () => {
-    logTestProgress('should return null when extracting data from an invalid token');
         const invalidToken = 'invalid-base64-token';
         const extractedData = tokenManager.extractOriginalData(invalidToken);
-    
+
         expect(extractedData).toBeNull();
     });
 
+    test('should generate a token using the specified salt index', () => {
+        const input = 'sensitive-data';
+        const forcedSaltIndex = 2; // Forçar o uso do índice 2
+        const token = tokenManager.generateToken(input, forcedSaltIndex);
+    
+        // Decodificar o token gerado para verificar o índice do salt usado
+        const decoded = Buffer.from(token, 'base64').toString('utf-8');
+        const [, saltIndexStr] = decoded.split('|');
+        const saltIndex = parseInt(saltIndexStr, 10);
+    
+        expect(saltIndex).toBe(forcedSaltIndex); // O índice do salt deve ser o especificado
+        expect(tokenManager.validateToken(token)).toBe(input); // O token deve ser válido
+    });
+    
+    test('should throw an error when using an invalid forced salt index', () => {
+        const input = 'sensitive-data';
+        const invalidSaltIndex = 10; // Índice inválido (fora do intervalo de salts)
+    
+        expect(() => {
+            tokenManager.generateToken(input, invalidSaltIndex);
+        }).toThrowError(`Índice de salt inválido: ${invalidSaltIndex}`);
+    });
+    
+
+    test('should generate tokens with automatically generated secrets and salts', () => {
+        const autoTokenManager = new AdvancedTokenManager();
+
+        const input = 'auto-sensitive-data';
+        const token = autoTokenManager.generateToken(input);
+
+        const validatedData = autoTokenManager.validateToken(token);
+        expect(validatedData).toBe(input);
+
+        const config = autoTokenManager.getConfig();
+        expect(config.secret).toBeDefined();
+        expect(config.secret.length).toBe(32);
+        expect(config.salts).toHaveLength(10);
+    });
+
     test('should handle an empty input gracefully', () => {
-    logTestProgress('should handle an empty input gracefully');
         const input = '';
         const token = tokenManager.generateToken(input);
         const validatedInput = tokenManager.validateToken(token);
 
-        expect(validatedInput).toBe(input); // Valida que o token vazio é tratado corretamente
+        expect(validatedInput).toBe(input);
     });
 
     test('should return null for an invalid Base64 token', () => {
-    logTestProgress('should return null for an invalid Base64 token');
         const invalidToken = 'invalid-base64-string';
         const validatedInput = tokenManager.validateToken(invalidToken);
 
-        expect(validatedInput).toBeNull(); // Valida que o token inválido não é aceito
+        expect(validatedInput).toBeNull();
     });
 
     test('should validate multiple tokens correctly', () => {
-    logTestProgress('should validate multiple tokens correctly');
         const input1 = 'data1';
         const input2 = 'data2';
         const token1 = tokenManager.generateToken(input1);
@@ -145,46 +164,41 @@ describe('AdvancedTokenManager', () => {
     });
 
     test('should detect tokens with tampered checksum', () => {
-    logTestProgress('should detect tokens with tampered checksum');
         const input = 'sensitive-data';
         const token = tokenManager.generateToken(input);
 
-        // Altera o checksum no token
         const decoded = Buffer.from(token, 'base64').toString('utf-8');
         const [data, saltIndex, checksum] = decoded.split('|');
-        const tamperedChecksum = checksum.slice(0, -1) + 'x'; // Modifica o checksum
+        const tamperedChecksum = checksum.slice(0, -1) + 'x';
         const tamperedToken = Buffer.from(`${data}|${saltIndex}|${tamperedChecksum}`).toString('base64');
 
         const validatedInput = tokenManager.validateToken(tamperedToken);
-        expect(validatedInput).toBeNull(); // O token deve ser inválido
+        expect(validatedInput).toBeNull();
     });
 
     test('should detect when salt index is missing', () => {
-    logTestProgress('should detect when salt index is missing');
         const input = 'sensitive-data';
         const token = tokenManager.generateToken(input);
 
-        // Remove o índice do salt
         const decoded = Buffer.from(token, 'base64').toString('utf-8');
         const [data, , checksum] = decoded.split('|');
         const malformedToken = Buffer.from(`${data}||${checksum}`).toString('base64');
 
         const validatedInput = tokenManager.validateToken(malformedToken);
-        expect(validatedInput).toBeNull(); // O token deve ser inválido
+        expect(validatedInput).toBeNull();
     });
 
     test('should detect when input is tampered with', () => {
-    logTestProgress('should detect when input is tampered with');
         const input = 'sensitive-data';
         const token = tokenManager.generateToken(input);
 
-        // Altera o dado original
         const decoded = Buffer.from(token, 'base64').toString('utf-8');
         const [data, saltIndex, checksum] = decoded.split('|');
-        const tamperedData = data.slice(0, -1) + 'x'; // Modifica o dado original
+        const tamperedData = data.slice(0, -1) + 'x';
         const tamperedToken = Buffer.from(`${tamperedData}|${saltIndex}|${checksum}`).toString('base64');
 
         const validatedInput = tokenManager.validateToken(tamperedToken);
-        expect(validatedInput).toBeNull(); // O token deve ser inválido
+        expect(validatedInput).toBeNull();
     });
+
 });
