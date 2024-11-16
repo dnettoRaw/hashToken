@@ -1,5 +1,14 @@
 import * as crypto from 'crypto';
 
+//=======================================//
+// editable zone 
+const DEFAULT_SECRET_LENGTH = 32;
+const DEFAULT_SALT_COUNT = 10;
+const DEFAULT_SALT_LENGTH = 16;
+const MIN_SECRET_LENGTH = 16;
+const MIN_SALT_COUNT = 2;
+//=======================================//
+
 export default class AdvancedTokenManager {
     private algorithm: string;
     private secret: string;
@@ -11,62 +20,67 @@ export default class AdvancedTokenManager {
         salts?: string[],
         algorithm: string = 'sha256',
         allowAutoGenerate: boolean = true,
-        noEnv: boolean = false // Flag para ignorar variáveis de ambiente
+        noEnv: boolean = false
     ) {
-        // Usa variáveis de ambiente apenas se `noEnv` for false e os valores não forem passados como parâmetro
-        if (!noEnv) {
-            secret = secret || process.env.TOKEN_SECRET || undefined;
-            salts = salts || process.env.TOKEN_SALTS?.split(',') || undefined;
-        }
-    
-        // Validação e inicialização da secret
-        if (!secret) {
-            if (allowAutoGenerate) {
-                this.secret = this.generateRandomKey(32); // Gera uma secret automaticamente
-                console.warn(
-                    "⚠️ Uma secret foi gerada automaticamente. Certifique-se de salvá-la em um local seguro, como um arquivo .env."
-                );
-            } else {
-                throw new Error("A chave secreta deve ter pelo menos 16 caracteres.");
-            }
-        } else if (secret.length < 16) {
-            throw new Error("A chave secreta deve ter pelo menos 16 caracteres.");
-        } else {
-            this.secret = secret;
-        }
-    
-        // Validação e inicialização dos salts
-        if (!salts || salts.length < 2) {
-            if (allowAutoGenerate) {
-                this.salts = Array.from({ length: 10 }, () => this.generateRandomKey(16)); // Gera 10 salts automaticamente
-                console.warn(
-                    "⚠️ Uma tabela de salts foi gerada automaticamente. Certifique-se de salvá-la em um local seguro, como um arquivo .env."
-                );
-            } else {
-                throw new Error("A tabela de salts não pode estar vazia.");
-            }
-        } else {
-            this.salts = salts;
-        }
-    
-        // Validação final dos salts para garantir que eles são strings válidas
-        if (this.salts.some(salt => typeof salt !== 'string' || salt.trim() === '')) {
-            throw new Error("Todos os salts devem ser strings não vazias.");
-        }
-    
-        // Configuração do algoritmo de hash
+        this.secret = this.initializeSecret(secret, allowAutoGenerate, noEnv);
+        this.salts = this.initializeSalts(salts, allowAutoGenerate, noEnv);
         this.algorithm = algorithm;
     }
 
-    // Gera uma chave aleatória com o comprimento especificado
-    private generateRandomKey(length: number): string {
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        return Array.from({ length }, () =>
-            characters.charAt(Math.floor(Math.random() * characters.length))
-        ).join('');
+    private initializeSecret(secret?: string, allowAutoGenerate?: boolean, noEnv?: boolean): string {
+        if (!noEnv) {
+            secret = secret || process.env.TOKEN_SECRET;
+        }
+        if (!secret) {
+            if (allowAutoGenerate) {
+                const generatedSecret = this.generateRandomKey(DEFAULT_SECRET_LENGTH);
+                console.warn("⚠️ Secret generated automatically. Store it securely.");
+                return generatedSecret;
+            }
+            throw new Error(`Secret must be at least ${MIN_SECRET_LENGTH} characters long.`);
+        }
+        if (secret.length < MIN_SECRET_LENGTH) {
+            throw new Error(`Secret must be at least ${MIN_SECRET_LENGTH} characters long.`);
+        }
+        return secret;
     }
 
-    // Retorna um índice de salt aleatório, garantindo que não seja repetido consecutivamente
+    private initializeSalts(salts?: string[], allowAutoGenerate?: boolean,  noEnv?: boolean): string[] {
+        if (!noEnv){
+            salts = salts || process.env.TOKEN_SALTS?.split(',');
+        }
+        if (!salts || salts.length < MIN_SALT_COUNT) {
+            if (allowAutoGenerate) {
+                const generatedSalts = Array.from({ length: DEFAULT_SALT_COUNT }, () => this.generateRandomKey(DEFAULT_SALT_LENGTH));
+                console.warn("⚠️ Salts generated automatically. Store them securely.");
+                return generatedSalts;
+            }
+            throw new Error("Salt array cannot be empty or less than 2.");
+        }
+        if (salts.some(salt => typeof salt !== 'string' || salt.trim() === '')) {
+            throw new Error("All salts must be non-empty strings.");
+        }
+        return salts;
+    }
+
+    // private generateRandomKey(length: number): string {
+    //     return crypto.randomBytes(length).toString('base64').slice(0, length);
+    // }
+
+    private generateRandomKey(length: number): string {
+        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const charactersLength = characters.length;
+        const randomValues = new Uint8Array(length);
+        crypto.getRandomValues(randomValues);
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += characters[randomValues[i] % charactersLength];
+        }
+        return result;
+    }
+    
+    
+
     private getRandomSaltIndex(): number {
         let index: number;
         do {
@@ -76,54 +90,42 @@ export default class AdvancedTokenManager {
         return index;
     }
 
-    // Gera um token a partir de uma string de entrada
     public generateToken(input: string, saltIndex?: number): string {
-        const index = saltIndex !== undefined ? saltIndex : this.getRandomSaltIndex();
-        if (index < 0 || index >= this.salts.length) {
-            throw new Error(`Índice de salt inválido: ${index}`);
-        }
-
+        const index = saltIndex ?? this.getRandomSaltIndex();
+        this.validateSaltIndex(index);
         const salt = this.salts[index];
         const checksum = this.createChecksum(input, salt);
-        const combinedData = `${input}|${index}|${checksum}`;
-        return Buffer.from(combinedData).toString('base64');
+        return Buffer.from(`${input}|${index}|${checksum}`).toString('base64');
     }
 
-    // Valida um token e retorna os dados originais se for válido
     public validateToken(token: string): string | null {
         try {
             const decoded = Buffer.from(token, 'base64').toString('utf-8');
             const [input, saltIndexStr, checksum] = decoded.split('|');
             const saltIndex = parseInt(saltIndexStr, 10);
-
-            if (isNaN(saltIndex) || saltIndex < 0 || saltIndex >= this.salts.length) {
-                console.error("Índice de salt inválido!");
-                return null;
-            }
-
-            const salt = this.salts[saltIndex];
-            const validChecksum = this.createChecksum(input, salt);
-
+            this.validateSaltIndex(saltIndex);
+            const validChecksum = this.createChecksum(input, this.salts[saltIndex]);
             return validChecksum === checksum ? input : null;
         } catch (error) {
-            console.error("Erro ao validar o token:", error);
+            console.error("Error validating token:", error);
             return null;
         }
     }
 
-    // Cria um checksum para validar integridade dos dados
-    private createChecksum(input: string, salt: string): string {
-        const hash = crypto.createHmac(this.algorithm, this.secret);
-        hash.update(input + salt);
-        return hash.digest('hex');
+    private validateSaltIndex(index: number): void {
+        if (index < 0 || index >= this.salts.length) {
+            throw new Error(`Invalid salt index: ${index}`);
+        }
     }
 
-    // Retorna os dados originais de um token
-    public extractOriginalData(token: string): string | null {
+    private createChecksum(input: string, salt: string): string {
+        return crypto.createHmac(this.algorithm, this.secret).update(input + salt).digest('hex');
+    }
+
+    public extractData(token: string): string | null {
         return this.validateToken(token);
     }
 
-    // Retorna a configuração atual de secret e salts
     public getConfig(): { secret: string; salts: string[] } {
         return { secret: this.secret, salts: this.salts };
     }
