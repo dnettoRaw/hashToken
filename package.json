@@ -13,6 +13,7 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
+    "test:gc": "node --expose-gc ./node_modules/.bin/jest",
     "prepublishOnly": "yarn build",
     "publish:github": "npm publish --registry=https://npm.pkg.github.com",
     "publish:npm": "npm publish"
