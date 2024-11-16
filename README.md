@@ -248,6 +248,15 @@ if (dadosValidados) {
 
 ---
 
+### Using Environment Variables / Usando Variáveis de Ambiente
+
+By default, `AdvancedTokenManager` can use environment variables for the `secret` and `salts`:
+
+```plaintext
+TOKEN_SECRET=your-secure-secret
+TOKEN_SALTS=salt1,salt2,salt3,salt4
+```
+
 ## Testing / Testes
 
 **English**:

@@ -122,6 +122,75 @@ describe('AdvancedTokenManager', () => {
         }).toThrowError(`Índice de salt inválido: ${invalidSaltIndex}`);
     });
     
+    
+    test('should use provided parameters instead of environment variables', () => {
+        const providedSecret = 'provided-secret-key';
+        const providedSalts = ['provided-salt1', 'provided-salt2'];
+    
+        const tokenManager = new AdvancedTokenManager(providedSecret, providedSalts);
+        const config = tokenManager.getConfig();
+    
+        expect(config.secret).toBe(providedSecret);
+        expect(config.salts).toEqual(providedSalts);
+    });
+    
+    test('should ignore environment variables when noEnv flag is true', () => {
+        const tokenManager = new AdvancedTokenManager(undefined, undefined, 'sha256', true, true);
+    
+        const config = tokenManager.getConfig();
+        expect(config.secret).not.toBe(process.env.TOKEN_SECRET); // Deve gerar uma nova secret
+        expect(config.salts).not.toEqual(process.env.TOKEN_SALTS?.split(',')); // Deve gerar novos salts automaticamente
+        expect(config.secret).toBeDefined();
+        expect(config.salts.length).toBe(10); // Geração automática cria 10 salts
+    });
+    
+    test('should throw an error when no secret and no salts are provided and allowAutoGenerate is false', () => {
+        delete process.env.TOKEN_SECRET;
+        delete process.env.TOKEN_SALTS;
+        expect(() => new AdvancedTokenManager(undefined, undefined, 'sha256', false)).toThrowError(
+            'A chave secreta deve ter pelo menos 16 caracteres.'
+        );
+    });
+
+    test('should use environment variables when no parameters are passed', () => {
+        process.env.TOKEN_SECRET = 'my-env-secret-key';
+        process.env.TOKEN_SALTS = 'env-salt1,env-salt2,env-salt3';
+        const tokenManager = new AdvancedTokenManager();
+        const config = tokenManager.getConfig();
+    
+        expect(config.secret).toBe(process.env.TOKEN_SECRET);
+        expect(config.salts).toEqual(process.env.TOKEN_SALTS?.split(','));
+    });
+    
+    test('should fallback to default behavior if env variables are missing and noEnv is false', () => {
+        delete process.env.TOKEN_SECRET;
+        delete process.env.TOKEN_SALTS;
+    
+        const tokenManager = new AdvancedTokenManager();
+        const config = tokenManager.getConfig();
+    
+        expect(config.secret).toBeDefined(); // Deve gerar uma nova secret
+        expect(config.salts.length).toBe(10); // Deve gerar 10 salts automaticamente
+    });
+    
+    test('should validate tokens generated using environment variables', () => {
+        const tokenManager = new AdvancedTokenManager();
+        const input = 'sensitive-data';
+        const token = tokenManager.generateToken(input);
+    
+        const validatedData = tokenManager.validateToken(token);
+        expect(validatedData).toBe(input);
+    });
+    
+    test('should validate tokens generated using noEnv mode', () => {
+        const tokenManager = new AdvancedTokenManager(undefined, undefined, 'sha256', true, true);
+        const input = 'sensitive-data';
+        const token = tokenManager.generateToken(input);
+    
+        const validatedData = tokenManager.validateToken(token);
+        expect(validatedData).toBe(input);
+    });
+    
 
     test('should generate tokens with automatically generated secrets and salts', () => {
         const autoTokenManager = new AdvancedTokenManager();
