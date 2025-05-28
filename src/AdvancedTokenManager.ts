@@ -63,22 +63,16 @@ export default class AdvancedTokenManager {
         return salts;
     }
 
-    // private generateRandomKey(length: number): string {
-    //     return crypto.randomBytes(length).toString('base64').slice(0, length);
-    // }
-
     private generateRandomKey(length: number): string {
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        const charactersLength = characters.length;
-        const randomValues = new Uint8Array(length);
-        crypto.getRandomValues(randomValues);
-        let result = '';
-        for (let i = 0; i < length; i++) {
-            result += characters[randomValues[i] % charactersLength];
-        }
-        return result;
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const charactersLength = characters.length;
+    const randomValues = crypto.randomBytes(length);
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        result += characters[randomValues[i] % charactersLength];
     }
-    
+    return result;
+    }
     
 
     private getRandomSaltIndex(): number {
