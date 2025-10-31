@@ -108,6 +108,71 @@ console.log(validatedData ? 'Valid Token:' : 'Invalid Token');
 
 ---
 
+## JWT (native, dependency-free)
+
+`hash-token` ships with a zero-dependency JSON Web Token implementation that relies on Node.js `crypto` only. It protects against common JWT pitfalls, enforces strict validation and integrates with the existing `AdvancedTokenManager` class.
+
+### Core helpers
+
+| Helper | Description |
+| --- | --- |
+| `signJwt(payload, options)` | Builds a signed JWT string using HMAC (HS256 or HS512). |
+| `verifyJwt(token, options)` | Validates structure, signature and claims before returning the payload. |
+
+### Signing options
+
+| Option | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `secret` | `string` | — | Required. HMAC secret used to sign the token. |
+| `algorithm` | `'HS256' \| 'HS512'` | `HS256` | Chooses the HMAC digest. |
+| `expiresIn` | `number` (seconds) | — | Adds an `exp` claim relative to the current time. |
+| `notBefore` | `number` (seconds) | — | Adds an `nbf` claim relative to the current time. |
+| `issuedAt` | `number` (epoch seconds) | now | Overrides the automatic `iat`. |
+| `issuer` | `string` | — | Ensures a consistent `iss` claim. |
+| `audience` | `string \| string[]` | — | Accepts a single or multiple audiences. |
+| `subject` | `string` | — | Sets the `sub` claim. |
+
+### Verification options
+
+| Option | Type | Default | Notes |
+| --- | --- | --- | --- |
+| `secret` | `string` | — | Required. Must match the signing secret. |
+| `algorithms` | `JwtAlgorithm[]` | any supported | Restricts which algorithms are allowed. |
+| `clockTolerance` | `number` (seconds) | `0` | Accepts small clock skews for `exp`, `nbf`, `iat`. |
+| `maxAge` | `number` (seconds) | — | Caps the lifetime counted from `iat`. |
+| `issuer` | `string \| string[]` | — | Expected issuers. Missing or mismatched claims reject the token. |
+| `audience` | `string \| string[]` | — | Expected audiences. |
+| `subject` | `string` | — | Expected subject. |
+
+### Usage examples
+
+```typescript
+import { signJwt, verifyJwt } from 'hash-token';
+
+const secret = 'rotate-me';
+
+const token = signJwt(
+    { userId: 'u-123', role: 'admin' },
+    { secret, algorithm: 'HS512', expiresIn: 300 }
+);
+
+const payload = verifyJwt(token, {
+    secret,
+    algorithms: ['HS512'],
+    audience: 'dashboard'
+});
+
+console.log(payload);
+```
+
+For end-to-end samples, check the new scripts under [`examples/`](./examples):
+
+- [`sign-verify.ts`](./examples/sign-verify.ts)
+- [`with-claims.ts`](./examples/with-claims.ts)
+- [`manager-integration.ts`](./examples/manager-integration.ts)
+
+---
+
 ## Tests
 
 Use Jest to test functionality under various scenarios, such as altered tokens or invalid salts.
