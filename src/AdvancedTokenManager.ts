@@ -1,4 +1,5 @@
 import * as crypto from 'crypto';
+import { signJwt, verifyJwt, SignJwtOptions, VerifyJwtOptions, JwtPayload, VerifyJwtResult } from './jwt';
 
 //=======================================//
 // editable zone 
@@ -122,5 +123,13 @@ export default class AdvancedTokenManager {
 
     public getConfig(): { secret: string; salts: string[] } {
         return { secret: this.secret, salts: this.salts };
+    }
+
+    public generateJwt<T extends JwtPayload>(payload: T, options?: SignJwtOptions): string {
+        return signJwt(payload, this.secret, options);
+    }
+
+    public validateJwt<T extends JwtPayload = JwtPayload>(token: string, options?: VerifyJwtOptions): VerifyJwtResult<T> {
+        return verifyJwt<T>(token, this.secret, options);
     }
 }

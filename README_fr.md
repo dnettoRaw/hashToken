@@ -38,6 +38,71 @@ Tests de performance montrent que la génération et la validation des tokens so
 - Génération automatique de `secret` et `sels` si nécessaire.
 - Prend en charge l'extraction des données d'origine à partir des tokens valides.
 
+### JWT (natif, sans dépendances)
+
+- Signature HS256/HS512 native basée uniquement sur `crypto` de Node.js.
+- Encodage Base64URL sans padding et validations strictes du header et du payload.
+- Claims optionnelles telles que `expiresIn`, `notBefore`, `issuer`, `audience` et `subject` prêtes à l'emploi.
+- Fonctionne seul ou via `AdvancedTokenManager.generateJwt()` / `validateJwt()`.
+
+#### Options de signature
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `algorithm` | `'HS256' \| 'HS512'` | Choisit l'algorithme HMAC (HS256 par défaut). |
+| `expiresIn` | `number` (secondes) | Définit `exp` par rapport à `iat`. Doit être positif. |
+| `notBefore` | `number` (secondes) | Définit `nbf` par rapport à `iat` pour différer la validité. |
+| `issuedAt` | `number` (secondes) | Force la valeur de `iat`. Par défaut `Date.now()/1000`. |
+| `issuer` | `string` | Renseigne `iss` pour identifier l'émetteur. |
+| `subject` | `string` | Renseigne `sub`, idéal pour les identifiants utilisateur. |
+| `audience` | `string \| string[]` | Renseigne `aud` pour un ou plusieurs publics. |
+
+#### Options de vérification
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `algorithms` | `('HS256' \| 'HS512')[]` | Restreint les algorithmes acceptés (par défaut les deux). |
+| `clockTolerance` | `number` (secondes) | Tolérance de dérive d'horloge pour `exp`/`nbf`. |
+| `maxAge` | `number` (secondes) | Vérifie que `iat` reste récent. Requiert `iat`. |
+| `issuer` | `string \| string[]` | Valeurs attendues pour `iss`. |
+| `audience` | `string \| string[]` | Valeurs attendues pour `aud`. |
+| `subject` | `string \| string[]` | Valeur attendue pour `sub`. |
+| `currentTimestamp` | `number` (secondes) | Remplace `Date.now()/1000` pour les tests déterministes. |
+
+#### Exemple rapide
+
+```typescript
+import { signJwt, verifyJwt } from 'hash-token';
+
+const secret = process.env.JWT_SECRET ?? 'super-secret';
+
+const token = signJwt(
+  { userId: 'u-123', scope: ['profil:lecture'] },
+  secret,
+  { expiresIn: 900, issuer: 'auth-service', audience: ['web'] }
+);
+
+const { payload } = verifyJwt(token, secret, { audience: 'web', issuer: 'auth-service' });
+console.log(payload.userId); // "u-123"
+```
+
+`AdvancedTokenManager` offre la même API :
+
+```typescript
+const manager = new AdvancedTokenManager('secret', ['sel-a', 'sel-b']);
+const jwt = manager.generateJwt({ workspaceId: '42' }, { expiresIn: 300 });
+const result = manager.validateJwt(jwt, { audience: 'dashboard' });
+console.log(result.payload.workspaceId);
+```
+
+Des extraits exécutables supplémentaires sont disponibles dans [`examples/`](./examples).
+
+#### Conseils de sécurité
+
+- Gardez le secret JWT privé et effectuez des rotations régulières.
+- Utilisez une `clockTolerance` ≤ 30 secondes pour absorber les écarts d'horloge sans masquer les anomalies.
+- Validez autant que possible `issuer`, `audience` et `subject` afin d'éviter les réutilisations entre services.
+
 ---
 
 ## Installation
