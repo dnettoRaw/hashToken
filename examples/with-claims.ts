@@ -1,4 +1,4 @@
-import { signJwt, verifyJwt } from 'hash-token';
+import { signJwt, verifyJwt } from '../src/index';
 
 const secret = 'claims-secret-change-me';
 

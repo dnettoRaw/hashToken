@@ -1,4 +1,4 @@
-import AdvancedTokenManager from 'hash-token';
+import AdvancedTokenManager from '../src/index';
 
 const manager = new AdvancedTokenManager('manager-secret-change-me', ['salt-1', 'salt-2']);
 
