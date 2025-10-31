@@ -108,6 +108,71 @@ console.log(validatedData ? 'Token Valide :' : 'Token Invalide');
 
 ---
 
+## JWT (natif, sans dépendances)
+
+`hash-token` intègre désormais une implémentation JSON Web Token sans dépendances externes, reposant uniquement sur `crypto` de Node.js. Elle renforce les contrôles de sécurité, interdit `alg: none` et s'utilise avec ou sans `AdvancedTokenManager`.
+
+### Utilitaires principaux
+
+| Helper | Description |
+| --- | --- |
+| `signJwt(payload, options)` | Crée un JWT signé avec HMAC (HS256 ou HS512). |
+| `verifyJwt(token, options)` | Vérifie structure, signature et claims avant de retourner le payload. |
+
+### Options de signature
+
+| Option | Type | Valeur par défaut | Remarques |
+| --- | --- | --- | --- |
+| `secret` | `string` | — | Obligatoire. Secret HMAC utilisé pour signer. |
+| `algorithm` | `'HS256' \| 'HS512'` | `HS256` | Choix de l'algorithme HMAC. |
+| `expiresIn` | `number` (secondes) | — | Ajoute `exp` relatif à l'horodatage actuel. |
+| `notBefore` | `number` (secondes) | — | Ajoute `nbf` relatif à maintenant. |
+| `issuedAt` | `number` (secondes) | maintenant | Remplace le `iat` automatique. |
+| `issuer` | `string` | — | Définit le claim `iss`. |
+| `audience` | `string \| string[]` | — | Public(s) ciblé(s). |
+| `subject` | `string` | — | Définit `sub`. |
+
+### Options de vérification
+
+| Option | Type | Valeur par défaut | Remarques |
+| --- | --- | --- | --- |
+| `secret` | `string` | — | Obligatoire. Doit correspondre au secret de signature. |
+| `algorithms` | `JwtAlgorithm[]` | tous | Restreint les algorithmes acceptés. |
+| `clockTolerance` | `number` (secondes) | `0` | Tolérance pour `exp`, `nbf`, `iat`. |
+| `maxAge` | `number` (secondes) | — | Durée maximale depuis `iat`. |
+| `issuer` | `string \| string[]` | — | Émetteurs attendus. |
+| `audience` | `string \| string[]` | — | Public attendu. |
+| `subject` | `string` | — | Sujet attendu. |
+
+### Exemple rapide
+
+```typescript
+import { signJwt, verifyJwt } from 'hash-token';
+
+const secret = 'remplacez-moi';
+
+const token = signJwt(
+    { utilisateurId: 'u-123', rôle: 'admin' },
+    { secret, algorithm: 'HS512', expiresIn: 300 }
+);
+
+const payload = verifyJwt(token, {
+    secret,
+    algorithms: ['HS512'],
+    audience: 'dashboard'
+});
+
+console.log(payload);
+```
+
+Consultez également les nouveaux exemples complets dans [`examples/`](./examples) :
+
+- [`sign-verify.ts`](./examples/sign-verify.ts)
+- [`with-claims.ts`](./examples/with-claims.ts)
+- [`manager-integration.ts`](./examples/manager-integration.ts)
+
+---
+
 ## Tests
 
 Utilisez Jest pour tester la fonctionnalité dans divers scénarios, tels que des tokens altérés ou des sels invalides.

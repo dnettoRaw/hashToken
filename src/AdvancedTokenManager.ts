@@ -1,4 +1,8 @@
 import * as crypto from 'crypto';
+import { signJwt, verifyJwt, SignJwtOptions, VerifyJwtOptions } from './jwt';
+
+type ManagerSignJwtOptions = Omit<SignJwtOptions, 'secret'> & { secret?: string };
+type ManagerVerifyJwtOptions = Omit<VerifyJwtOptions, 'secret'> & { secret?: string };
 
 //=======================================//
 // editable zone 
@@ -118,6 +122,21 @@ export default class AdvancedTokenManager {
 
     public extractData(token: string): string | null {
         return this.validateToken(token);
+    }
+
+    public generateJwt(payload: Record<string, unknown>, options?: ManagerSignJwtOptions): string {
+        const secret = options?.secret ?? this.secret;
+        const signOptions: SignJwtOptions = { ...(options || {}), secret };
+        return signJwt(payload, signOptions);
+    }
+
+    public validateJwt<T extends Record<string, unknown> = Record<string, unknown>>(
+        token: string,
+        options?: ManagerVerifyJwtOptions
+    ): T {
+        const secret = options?.secret ?? this.secret;
+        const verifyOptions: VerifyJwtOptions = { ...(options || {}), secret };
+        return verifyJwt<T>(token, verifyOptions);
     }
 
     public getConfig(): { secret: string; salts: string[] } {
