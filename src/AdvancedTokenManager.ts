@@ -11,6 +11,8 @@ const DEFAULT_SALT_COUNT = 10;
 const DEFAULT_SALT_LENGTH = 16;
 const MIN_SECRET_LENGTH = 16;
 const MIN_SALT_COUNT = 2;
+const CHARACTERSLIST = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+// CHARACTERSLIST can be customized if needed 
 //=======================================//
 
 type AdvancedTokenManagerLoggerInput = Partial<Pick<Console, 'warn' | 'error'>>;
@@ -210,7 +212,7 @@ export default class AdvancedTokenManager {
     }
 
     private generateRandomKey(length: number): string {
-        const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        const characters = CHARACTERSLIST;
         const charactersLength = characters.length;
         const randomValues = crypto.randomBytes(length);
         let result = '';
