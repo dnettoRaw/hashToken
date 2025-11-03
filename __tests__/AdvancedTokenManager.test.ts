@@ -1,6 +1,7 @@
 import { describe, test, expect } from '@jest/globals';
 import AdvancedTokenManager from '../src/AdvancedTokenManager';
 import { performance } from 'perf_hooks';
+import { JwtAlgorithm } from '../src/jwt';
 
 describe('AdvancedTokenManager', () => {
     const secretKey = 'my-very-secure-key-12345';
@@ -206,6 +207,125 @@ describe('AdvancedTokenManager', () => {
         expect(config.secret).toBeDefined();
         expect(config.secret.length).toBe(32);
         expect(config.salts).toHaveLength(10);
+    });
+
+    test('trims provided secret and salts during initialization', () => {
+        const paddedSecret = '   trimmed-secret-value   ';
+        const paddedSalts = ['  salt-1  ', 'salt-2   ', '   salt-3'];
+
+        const manager = new AdvancedTokenManager(paddedSecret, paddedSalts, 'sha256', false, true);
+        const config = manager.getConfig();
+
+        expect(config.secret).toBe('trimmed-secret-value');
+        expect(config.salts).toEqual(['salt-1', 'salt-2', 'salt-3']);
+    });
+
+    test('uses injected logger for auto-generated secrets, salts, and validation errors', () => {
+        const warnMock = jest.fn();
+        const errorMock = jest.fn();
+        const manager = new AdvancedTokenManager(undefined, undefined, 'sha256', true, true, {
+            logger: { warn: warnMock, error: errorMock }
+        });
+
+        expect(warnMock).toHaveBeenCalledTimes(2);
+        expect(warnMock).toHaveBeenCalledWith('⚠️ Secret generated automatically. Store it securely.');
+        expect(warnMock).toHaveBeenCalledWith('⚠️ Salts generated automatically. Store them securely.');
+        expect(errorMock).not.toHaveBeenCalled();
+
+        const invalidToken = 'invalid-base64-token';
+        const result = manager.validateToken(invalidToken);
+        expect(result).toBeNull();
+        expect(errorMock).toHaveBeenCalledTimes(1);
+        expect(errorMock).toHaveBeenCalledWith(expect.stringContaining('Error validating token'));
+    });
+
+    test('validateToken can throw on demand', () => {
+        const manager = new AdvancedTokenManager(secretKey, salts, 'sha256', true, true);
+        expect(() => manager.validateToken('invalid-token', { throwOnFailure: true })).toThrow('Invalid salt index: NaN');
+    });
+
+    test('validateToken respects throwOnValidationFailure option', () => {
+        const manager = new AdvancedTokenManager(secretKey, salts, 'sha256', true, true, {
+            throwOnValidationFailure: true
+        });
+        expect(() => manager.validateToken('invalid-token')).toThrow('Invalid salt index: NaN');
+    });
+
+    test('enforces configured jwtDefaultAlgorithms when verify options omit algorithms', () => {
+        const manager = new AdvancedTokenManager(secretKey, salts, 'sha256', true, true, {
+            jwtDefaultAlgorithms: ['HS256']
+        });
+
+        const hs256Token = manager.generateJwt({ payload: 'data' }, { algorithm: 'HS256' });
+        expect(() => manager.validateJwt(hs256Token)).not.toThrow();
+
+        const hs512Token = manager.generateJwt({ payload: 'data' }, { algorithm: 'HS512' });
+        expect(() => manager.validateJwt(hs512Token)).toThrow('JWT: algorithm HS512 is not allowed.');
+    });
+
+    test('enforces jwtMaxPayloadSize from options', () => {
+        const manager = new AdvancedTokenManager(secretKey, salts, 'sha256', true, true, {
+            jwtMaxPayloadSize: 32
+        });
+
+        const token = manager.generateJwt({ payload: 'x'.repeat(64) });
+        expect(() => manager.validateJwt(token)).toThrow('JWT: payload exceeds maxPayloadSize.');
+    });
+
+    test('enforces jwtAllowedClaims from options', () => {
+        const manager = new AdvancedTokenManager(secretKey, salts, 'sha256', true, true, {
+            jwtAllowedClaims: ['role']
+        });
+
+        const allowedToken = manager.generateJwt({ role: 'admin', iss: 'issuer' });
+        expect(() => manager.validateJwt(allowedToken)).not.toThrow();
+
+        const forbiddenToken = manager.generateJwt({ scope: 'admin' });
+        expect(() => manager.validateJwt(forbiddenToken)).toThrow('JWT: claim "scope" is not allowed.');
+    });
+
+    test('rejects invalid manager options', () => {
+        expect(
+            () =>
+                new AdvancedTokenManager(secretKey, salts, 'sha256', true, true, {
+                    defaultSecretLength: 10
+                })
+        ).toThrow('defaultSecretLength must be an integer greater than or equal to 16.');
+
+        expect(
+            () =>
+                new AdvancedTokenManager(secretKey, salts, 'sha256', true, true, {
+                    defaultSaltCount: 1
+                })
+        ).toThrow('defaultSaltCount must be an integer greater than or equal to 2.');
+
+        expect(
+            () =>
+                new AdvancedTokenManager(secretKey, salts, 'sha256', true, true, {
+                    jwtDefaultAlgorithms: []
+                })
+        ).toThrow('jwtDefaultAlgorithms must be a non-empty array when provided.');
+
+        expect(
+            () =>
+                new AdvancedTokenManager(secretKey, salts, 'sha256', true, true, {
+                    jwtDefaultAlgorithms: ['RS256' as unknown as JwtAlgorithm]
+                })
+        ).toThrow('Unsupported JWT algorithm in configuration: RS256');
+
+        expect(
+            () =>
+                new AdvancedTokenManager(secretKey, salts, 'sha256', true, true, {
+                    jwtMaxPayloadSize: 0
+                })
+        ).toThrow('jwtMaxPayloadSize must be a positive number.');
+
+        expect(
+            () =>
+                new AdvancedTokenManager(secretKey, salts, 'sha256', true, true, {
+                    jwtAllowedClaims: ['']
+                })
+        ).toThrow('jwtAllowedClaims must be an array of non-empty strings.');
     });
 
     test('should handle an empty input gracefully', () => {

@@ -108,9 +108,54 @@ console.log(validatedData ? 'Valid Token:' : 'Invalid Token');
 
 ---
 
+### AdvancedTokenManager options
+
+Pass an optional configuration object as the last constructor argument to fine-tune behaviour:
+
+```typescript
+import AdvancedTokenManager from 'hash-token';
+
+const manager = new AdvancedTokenManager('secure-key', ['salt1', 'salt2'], 'sha256', true, false, {
+    logger: { warn: message => myLogger.warn(message) },
+    jwtDefaultAlgorithms: ['HS256'],
+    defaultSecretLength: 48,
+    defaultSaltCount: 12,
+    defaultSaltLength: 24
+});
+```
+
+| Option | Type | Requirement | Description |
+| --- | --- | --- | --- |
+| `logger.warn` | `(message: string) => void` | optional | Redirects warning messages (defaults to `console`). |
+| `logger.error` | `(message: string) => void` | optional | Handles validation errors (defaults to `console.error`). |
+| `jwtDefaultAlgorithms` | `JwtAlgorithm[]` | optional | Algorithms enforced automatically when `validateJwt` is called without `algorithms`. |
+| `defaultSecretLength` | `number` | ≥ 16 | Length used when auto-generating secrets. |
+| `defaultSaltCount` | `number` | ≥ 2 | Amount of salts generated when none are provided. |
+| `defaultSaltLength` | `number` | ≥ 1 | Length of each generated salt string. |
+| `throwOnValidationFailure` | `boolean` | optional | Throws instead of returning `null` when `validateToken` fails. |
+| `jwtMaxPayloadSize` | `number` | > 0 | Maximum payload size (bytes) enforced during `validateJwt`. |
+| `jwtAllowedClaims` | `string[]` | optional | Whitelist of additional claims allowed beyond the standard ones. |
+
+Need stricter token handling for debugging? Pass `throwOnFailure` per call:
+
+```typescript
+try {
+    tokenManager.validateToken(token, { throwOnFailure: true });
+} catch (error) {
+    auditLogger.error('Suspicious token rejected', error);
+}
+```
+
+---
+
 ## JWT (native, dependency-free)
 
 `hash-token` ships with a zero-dependency JSON Web Token implementation that relies on Node.js `crypto` only. It protects against common JWT pitfalls, enforces strict validation and integrates with the existing `AdvancedTokenManager` class.
+
+Security tips for JWT usage:
+- Pin algorithms in production with `algorithms: ['HS256']` or `['HS512']` when verifying.
+- Consider a small `clockTolerance` (e.g., 5–30s) in distributed systems.
+- `notBefore` in `signJwt` is a relative offset (seconds) from the current time.
 
 ### Core helpers
 
@@ -143,6 +188,8 @@ console.log(validatedData ? 'Valid Token:' : 'Invalid Token');
 | `issuer` | `string \| string[]` | — | Expected issuers. Missing or mismatched claims reject the token. |
 | `audience` | `string \| string[]` | — | Expected audiences. |
 | `subject` | `string` | — | Expected subject. |
+| `maxPayloadSize` | `number` (bytes) | — | Rejects tokens whose payload exceeds the configured byte length. |
+| `allowedClaims` | `string[]` | — | Restricts additional claims to the provided whitelist (standard claims remain accepted). |
 
 ### Usage examples
 

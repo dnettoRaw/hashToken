@@ -36,3 +36,6 @@ Thumbs.db
 *.tgz
 .npmrc
 .eslintcache
+
+
+command.md

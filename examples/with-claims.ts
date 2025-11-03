@@ -19,8 +19,18 @@ const payload = verifyJwt(token, {
     issuer: ['api.my-app.local'],
     subject: 'user-1001',
     audience: 'mobile-app',
-    clockTolerance: 5
+    clockTolerance: 5,
+    allowedClaims: ['featureFlag']
 });
 
 console.log('JWT with claims:', token);
 console.log('Verified payload:', payload);
+
+try {
+    verifyJwt(token, {
+        secret,
+        allowedClaims: ['scope'] // "featureFlag" is not in the allow list, so this fails
+    });
+} catch (error) {
+    console.log('Strict claim whitelist rejected token:', (error as Error).message);
+}

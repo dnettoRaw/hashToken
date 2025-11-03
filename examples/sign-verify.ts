@@ -7,7 +7,11 @@ const token = signJwt(
     { secret, algorithm: 'HS256', expiresIn: 60 }
 );
 
-const payload = verifyJwt(token, { secret });
+const payload = verifyJwt(token, {
+    secret,
+    maxPayloadSize: 256, // reject unexpectedly large payloads
+    allowedClaims: ['id', 'role'] // only accept custom claims we expect
+});
 
 console.log('Generated JWT:', token);
 console.log('Decoded payload:', payload);
